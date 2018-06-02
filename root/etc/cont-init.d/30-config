@@ -1,0 +1,47 @@
+#!/usr/bin/with-contenv bash
+
+# move the default configs
+[[ ! -e /config/.rclone.conf ]] && \
+    cp /defaults/.rclone.conf /config/.rclone.conf
+
+[[ ! -e /config/settings.conf ]] && \
+    cp /defaults/settings.conf /config/settings.conf
+
+[[ ! -e /config/usersettings.conf ]] && \
+    cp /defaults/usersettings.conf /config/usersettings.conf
+
+[[ ! -e /config/gdsaDB ]] && \
+    cp /defaults/gdsaDB /config/gdsaDB
+
+[[ ! -d /config/logs ]] && \
+    mkdir -p /config/logs
+
+[[ ! -d /config/tmp ]] && \
+    mkdir -p /config/tmp
+    
+
+# check ENV's are setup properly
+if [ -z "$gdsaImpersonate" ]; then
+  echo "Error: gdsaImpersonate environment variable was not passed to the container."
+  exit 1
+fi
+
+if [ -z "$teamDrive" ]; then
+  echo "Error: teamDrive environment variable was not passed to the container."
+  exit 1
+fi
+
+# edit usersettings
+[[ $rootDir == '/' || -z $rootDir ]] && \
+  rootDir=''
+
+rootClean=$(echo $rootDir | sed 's/\//\\\//g')
+sed -i '/'^rootDir'=/ s/=.*/='${rootClean}'/' /config/usersettings.conf
+
+sed -i '/'^gdsaImpersonate'=/ s/=.*/='$gdsaImpersonate'/' /config/usersettings.conf
+sed -i '/'^teamDrive'=/ s/=.*/='$teamDrive'/' /config/usersettings.conf
+
+# edit global settings
+
+# permissions
+chown -R abc:abc /config
