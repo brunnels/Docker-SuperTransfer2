@@ -1,7 +1,5 @@
 #!/usr/bin/with-contenv sh
 
-umask 022
-
 echo "Executing => ST2"
 exec \
 s6-setuidgid abc /app/supertransfer2.sh
