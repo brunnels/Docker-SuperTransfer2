@@ -3,7 +3,7 @@ echo -e " [INFO] Initializing Supertransfer2 Load Balanced Multi-SA Uploader..."
 source /app/rcloneupload.sh
 source /config/settings.conf
 source /config/usersettings.conf
-dbug=on
+#dbug=on
 
 # check to make sure filepaths are there
 touch /tmp/superTransferUploadSuccess &>/dev/null
@@ -54,43 +54,35 @@ while true; do
   # purge empty folders
   find "${localDir}" -mindepth 2 -type d -empty -delete
   # remote duplicates from fileLock
-  awk -i inplace '!seen[$0]++' ${fileLock}
+  gawk -i inplace '!seen[$0]++' ${fileLock}
   # black magic: find list of all dirs that have files at least 1 minutes old that aren't hidden
   # and put the deepest directories in an array, then sort by dirsize
-  sc=$(awk -F"/" '{print NF-2}' <<<${localDir})
+  sc=$(gawk -F"/" '{print NF-2}' <<<${localDir})
   unset a i
-      while IFS= read -r -u3 -d $'\0' dir; do
+      while IFS=$(read -r -u3 -d $'\0' dir); do
           [[ $(find "${dir}" -type f -mmin -${modTime} -print -quit) == '' && ! $(find "${dir}" -name "*.partial~") ]] \
               && a[i++]=$(du -s "${dir}")
       done 3< <(find ${localDir} -mindepth $sc -type d -not -path '*/\.*' -links 2 -not -empty -prune -print0)
 
       # sort by largest files first
       IFS=$'\n' uploadQueueBuffer=($(sort -gr <<<"${a[*]}"))
-      echo $IFS
       unset IFS
-
-      echo "Oh Fuck"
-      echo $(seq 0 $((${#uploadQueueBuffer[@]}-1)))
 
       # iterate through each folder and upload
       for i in $(seq 0 $((${#uploadQueueBuffer[@]}-1))); do
-        echo "iterating"
         flag=0
         # pause if max concurrent uploads limit is hit
         numCurrentTransfers=$(grep -c "$localDir" $fileLock)
         [[ $numCurrentTransfers -ge $maxConcurrentUploads ]] && break
 
-        echo "no limit"
         # get least used gdsa account
         gdsaLeast=$(sort -gr -k2 -t'=' ${gdsaDB} | egrep ^GDSA[0-9]+=. | tail -1 | cut -f1 -d'=')
         [[ -z $gdsaLeast ]] && echo -e " [FAIL] Failed To get gdsaLeast. Exiting." && exit 1
-        echo "least found"
 
         # upload folder (rclone_upload function will skip on filelocked folders)
         if [[ -n "${uploadQueueBuffer[i]}" ]]; then
           [[ -n $dbug ]] && echo -e " [DBUG] Supertransfer rclone_upload input: "${file}""
           IFS=$'\t'
-          echo "starting upload"
           #             |---uploadQueueBuffer--|
           #input format: <dirsize> <upload_dir>  <rclone> <remote_root_dir>
           rclone_upload ${uploadQueueBuffer[i]} $gdsaLeast $remoteDir &
@@ -99,6 +91,5 @@ while true; do
         fi
       done
       unset -v uploadQueueBuffer[@]
-      echo "shaleep"
       sleep $sleepTime
 done
