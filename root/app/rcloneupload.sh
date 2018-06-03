@@ -20,17 +20,17 @@ rclone_upload() {
   local t1=$(date +%s)
 
   # load latest usage value from db
-  local oldUsage=$(egrep -m1 ^$gdsa=. $gdsaDB | awk -F'=' '{print $2}')
+  local oldUsage=$(egrep -m1 ^$gdsa=. $gdsaDB | gawk -F'=' '{print $2}')
   local Usage=$(( oldUsage + fileSize ))
   [[ -n $dbug ]] && echo -e " [DBUG]\t$gdsa\tUsage: $Usage"
   # update gdsaUsage file with latest usage value
   sed -i '/'^$gdsa'=/ s/=.*/='$Usage'/' $gdsaDB
-  local gbFileSize=$fileSize/1000000
+  local gbFileSize=$(($fileSize/1000000))
   echo -e " [INFO] $gdsaLeast \tUploading: ${localFile#"$localDir"} @${gbFileSize}"
-  [[ -n $dbug ]] && -e " [DBUG] $gdsaLeast @${gbUsage}"
+  [[ -n $dbug ]] && echo -e " [DBUG] $gdsaLeast @${gbUsage}"
 
   # memory optimization
-  local freeRam=$(free | grep Mem | awk '{print $4/1000000}')
+  local freeRam=$(free | grep Mem | gawk '{print $4/1000000}')
 	case $freeRam in
 		[0123456789][0123456789][0123456789]*) driveChunkSize="1024M" ;;
 		[0123456789][0123456789]*) driveChunkSize="1024M" ;;
@@ -47,7 +47,7 @@ rclone_upload() {
   local tmp=$(echo "${2}" | rev | cut -f1 -d'/' | rev | sed 's/ /_/g; s/\"//g')
   local logfile=${logDir}/${gdsa}_${tmp}.log
   rclone move --tpslimit 6 --checkers=20 \
-    --config /root/.config/rclone/rclone.conf \
+    --config /config/.rclone.conf \
     --transfers=8 \
     --log-file=${logfile}  \
     --log-level INFO --stats 5s \
@@ -67,12 +67,12 @@ rclone_upload() {
     [[ -n $(ls "${localFile}") ]] && sleep 45  # sleep so files are deleted off disk before resuming; good for TV episodes
   else
     printf " [FAIL] $gdsaLeast\tUPLOAD FAILED: "${localFile}" in %dh:%dm:%ds\n" $(($secs/3600)) $(($secs%3600/60)) $(($secs%60))
-    cat $logfile >> /tmp/rclonefail.log
+    cat $logfile >> /config/tmp/rclonefail.log
     [[ -n $dbug ]] && echo -e " [DBUG]\t$gdsa\tREVERTED Usage: $Usage"
     # revert gdsaDB back to old value if upload failed
     sed -i '/'^$gdsa'=/ s/=.*/='$oldUsage'/' $gdsaDB
   fi
     # release fileLock when file transfer finishes (or fails)
-    egrep -xv "${sanitizedLocalFile}" "${fileLock}" > /tmp/fileLock.tmp && mv /tmp/fileLock.tmp ${fileLock}
+    egrep -xv "${sanitizedLocalFile}" "${fileLock}" > /config/tmp/fileLock.tmp && mv /config/tmp/fileLock.tmp ${fileLock}
     [[ -e $logfile ]] && rm -f $logfile
 }
