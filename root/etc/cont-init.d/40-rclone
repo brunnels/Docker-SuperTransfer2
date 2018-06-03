@@ -5,6 +5,7 @@ source /config/usersettings.conf
 # config json
 configure_Json(){
   rclonePath='/config/.rclone.conf'
+  truncate -s0 rclonePath
   [[ -e ${rclonePath} ]] || mkdir -p ${rclonePath}
   [[ ! $(ls $jsonPath | egrep .json$) ]] && log "No Service Accounts Json Found." FAIL && exit 1
   # add rclone config for new keys if not already existing
@@ -29,6 +30,7 @@ CFG
 
 # Initalize gdsaDB 
 init_DB(){
+  truncate -s0 $gdsaDB
   # get list of avail gdsa accounts
   gdsaList=$(rclone listremotes --config /config/.rclone.conf | sed 's/://' | egrep '^GDSA[0-9]+$')
   if [[ -n $gdsaList ]]; then
